@@ -13,11 +13,6 @@ except ImportError:
     st.error("The 'gdown' library is not installed. Please add 'gdown' to your requirements.txt file.")
     st.stop()
 
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -25,64 +20,20 @@ warnings.filterwarnings("ignore")
 # Set page configuration
 st.set_page_config(layout="wide", page_title="Beijing Air Quality Analysis and Prediction")
 
-# --- Load Data ---
-# Assuming the merged dataset is saved as 'merged_beijing_air_quality.csv'
-# and the model is loaded from Google Drive.
+# Loading Data
+
 @st.cache_data # Cache data loading for better performance
 def load_data(data_path='merged_beijing_air_quality.csv'):
     """Loads the merged air quality dataset."""
-    if not os.path.exists(data_path):
-        st.error(f"Error: Data file not found at {data_path}. Please ensure 'merged_beijing_air_quality.csv' is in the same directory.")
-        # Attempt to generate the merged CSV if original files are available (less ideal for deployment)
-        st.warning("Attempting to merge original data files. This is less efficient for deployment.")
-        try:
-            df_changping = pd.read_csv('PRSA_Data_Changping_20130301-20170228.csv')
-            df_dongsi = pd.read_csv('PRSA_Data_Dongsi_20130301-20170228.csv')
-            df_gucheng = pd.read_csv('PRSA_Data_Gucheng_20130301-20170228.csv')
-            df_huairou = pd.read_csv('PRSA_Data_Huairou_20130301-20170228.csv')
+    df = pd.read_csv(data_path)
+    df['datetime'] = pd.to_datetime(df['datetime']) # Ensure datetime is datetime object
+    return df
 
-            df_changping['category'] = 'Suburban'
-            df_dongsi['category'] = 'Urban'
-            df_gucheng['category'] = 'Industrial'
-            df_huairou['category'] = 'Rural'
-
-            df_list = [df_changping, df_dongsi, df_gucheng, df_huairou]
-            merged_df = pd.concat(df_list, ignore_index=True)
-            merged_df['datetime'] = pd.to_datetime(merged_df[['year', 'month', 'day', 'hour']])
-            cols = ['datetime', 'station', 'category', 'PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3',
-                    'TEMP', 'PRES', 'DEWP', 'RAIN', 'wd','WSPM']
-            merged_df = merged_df[cols]
-
-            # Basic handling of missing values as in your notebook
-            numerical_cols = ['PM2.5', 'PM10', 'SO2', 'NO2', 'CO', 'O3', 'TEMP', 'PRES', 'DEWP', 'RAIN', 'WSPM']
-            for col in numerical_cols:
-                merged_df[col] = merged_df[col].ffill()
-            if not merged_df['wd'].mode().empty:
-                 merged_df['wd'] = merged_df['wd'].fillna(merged_df['wd'].mode()[0])
-            else:
-                 merged_df['wd'] = merged_df['wd'].fillna('NW') # Fallback if mode is empty
-
-
-            merged_df.drop_duplicates(inplace=True)
-            merged_df.to_csv(data_path, index=False) # Save the generated CSV
-
-            return merged_df
-        except FileNotFoundError:
-             st.error("Error: Original data files not found. Cannot generate merged data.")
-             return None
-    else:
-        df = pd.read_csv(data_path)
-        df['datetime'] = pd.to_datetime(df['datetime']) # Ensure datetime is datetime object
-        return df
-
-# Replace 'YOUR_GOOGLE_DRIVE_FILE_ID' with the actual ID from your shared link
-# The ID is the part after /d/ in the shareable link: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
 GOOGLE_DRIVE_FILE_ID = '1LUlsKzS37YGI8AqY71oAj9EJFYM1_9yV'
-MODEL_FILENAME = 'model.joblib' # Define a local filename for the downloaded model
+MODEL_FILENAME = 'model.joblib' 
 
 @st.cache_resource # Cache the model loading
 def load_model_from_drive(file_id, output_filename):
-    """Downloads the model from Google Drive and loads it."""
     st.write(f"Attempting to download model file (ID: {file_id}) from Google Drive...")
     # Create a temporary directory to store the downloaded file
     temp_dir = tempfile.mkdtemp()
@@ -90,7 +41,6 @@ def load_model_from_drive(file_id, output_filename):
 
     try:
         # Use gdown to download the file
-        # The file ID is enough for gdown if the file is shared correctly
         gdown.download(id=file_id, output=local_model_path, quiet=False)
         st.write(f"Model downloaded to {local_model_path}. Loading model...")
 
@@ -113,11 +63,11 @@ def load_model_from_drive(file_id, output_filename):
 # Load data and model
 merged_df = load_data()
 # Call the new function to load the model from Google Drive
-best_model_pipeline = load_model_from_drive(GOOGLE_DRIVE_FILE_ID, MODEL_FILENAME)
+model = load_model_from_drive(GOOGLE_DRIVE_FILE_ID, MODEL_FILENAME)
 
 
 # Check if data and model loaded successfully
-if merged_df is None or best_model_pipeline is None:
+if merged_df is None or model is None:
     st.stop() # Stop the app if essential files are missing
 
 # --- Sidebar Navigation ---
@@ -303,16 +253,14 @@ elif page == "Modelling and Prediction":
     st.title("🧠 Modelling and Prediction")
     st.write("Predict PM2.5 levels using the trained Random Forest Regression model.")
 
-    if best_model_pipeline:
+    if model:
         st.subheader("Model Information")
         st.write("The model used is a Random Forest Regressor.")
         st.write("It was trained on hourly air quality and meteorological data.")
-        st.write(f"Model loaded successfully: {type(best_model_pipeline)}")
+        st.write(f"Model loaded successfully: {type(model)}")
 
         # Display model performance metrics from training (if available or hardcoded)
-        # You might want to save these metrics during training and load them here
         st.subheader("Model Performance (from training)")
-        # Replace with actual metrics if you saved them
         st.write(f"- Test RMSE: Approximately 20.95")
         st.write(f"- Test R-squared: Approximately 0.93")
         st.info("These metrics indicate good performance of the model on unseen data.")
@@ -321,8 +269,6 @@ elif page == "Modelling and Prediction":
         st.subheader("Make a PM2.5 Prediction")
         st.write("Enter the values for the features below to get a PM2.5 prediction.")
 
-        # --- Input Fields for Prediction ---
-        # Based on numerical_features and categorical_features used in training
         numerical_features = ['PM10', 'SO2', 'NO2', 'CO', 'O3', 'TEMP', 'PRES', 'DEWP', 'RAIN', 'WSPM', 'hour']
         categorical_features = ['wd', 'category']
 
@@ -361,11 +307,7 @@ elif page == "Modelling and Prediction":
         # Create a DataFrame from input data
         input_df = pd.DataFrame([input_data])
 
-        # Ensure columns are in the same order as training data (important for the pipeline)
-        # We need the exact columns used for training the preprocessor
-        # A robust way is to get the feature names from the preprocessor after fitting it
-        # However, since we are loading a pre-fitted pipeline, we need to know the original columns.
-        # Based on your notebook: numerical_features + categorical_features
+
         original_feature_order = numerical_features + categorical_features
         # Reindex input_df to match the original training order
         input_df = input_df[original_feature_order]
@@ -374,7 +316,7 @@ elif page == "Modelling and Prediction":
         if st.button("Predict PM2.5"):
             try:
                 # Make prediction using the loaded pipeline
-                prediction = best_model_pipeline.predict(input_df)
+                prediction = model.predict(input_df)
                 st.success(f"Predicted PM2.5 Concentration: **{prediction[0]:.2f} µg/m³**")
             except Exception as e:
                 st.error(f"An error occurred during prediction: {e}")

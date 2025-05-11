@@ -77,7 +77,7 @@ def load_data(data_path='merged_beijing_air_quality.csv'):
 
 # Replace 'YOUR_GOOGLE_DRIVE_FILE_ID' with the actual ID from your shared link
 # The ID is the part after /d/ in the shareable link: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
-GOOGLE_DRIVE_FILE_ID = 'https://drive.google.com/file/d/1LUlsKzS37YGI8AqY71oAj9EJFYM1_9yV/view?usp=sharing'
+GOOGLE_DRIVE_FILE_ID = '1LUlsKzS37YGI8AqY71oAj9EJFYM1_9yV'
 MODEL_FILENAME = 'model.joblib' # Define a local filename for the downloaded model
 
 @st.cache_resource # Cache the model loading

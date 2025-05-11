@@ -293,8 +293,8 @@ elif page == "Exploratory Data Analysis (EDA)":
     fig, ax = plt.subplots(figsize=(9, 7))
     sns.heatmap(correlation_matrix, annot=True, cmap='viridis', fmt=".2f", linewidths=.5, annot_kws={"size":10}, ax=ax)
     ax.set_title('Correlation Matrix of Pollutants and Meteorological Factors', fontsize=16, fontweight='bold')
-    ax.tick_params(axis='x', rotation=45, ha='right')
-    ax.tick_params(axis='y', rotation=0)
+    # ax.tick_params(axis='x', rotation=45, ha='right')
+    # ax.tick_params(axis='y', rotation=0)
     st.pyplot(fig)
     st.write("Confirms intercorrelations among pollutants and negative correlation between pollutants and wind speed.")
 

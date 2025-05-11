@@ -5,6 +5,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 import os
+import tempfile # Import tempfile
+# Import gdown
+try:
+    import gdown
+except ImportError:
+    st.error("The 'gdown' library is not installed. Please add 'gdown' to your requirements.txt file.")
+    st.stop()
+
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -19,7 +27,7 @@ st.set_page_config(layout="wide", page_title="Beijing Air Quality Analysis and P
 
 # --- Load Data ---
 # Assuming the merged dataset is saved as 'merged_beijing_air_quality.csv'
-# and the model is saved as 'model.joblib' in the same directory as the app script.
+# and the model is loaded from Google Drive.
 @st.cache_data # Cache data loading for better performance
 def load_data(data_path='merged_beijing_air_quality.csv'):
     """Loads the merged air quality dataset."""
@@ -67,22 +75,46 @@ def load_data(data_path='merged_beijing_air_quality.csv'):
         df['datetime'] = pd.to_datetime(df['datetime']) # Ensure datetime is datetime object
         return df
 
+# Replace 'YOUR_GOOGLE_DRIVE_FILE_ID' with the actual ID from your shared link
+# The ID is the part after /d/ in the shareable link: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+GOOGLE_DRIVE_FILE_ID = 'https://drive.google.com/file/d/1LUlsKzS37YGI8AqY71oAj9EJFYM1_9yV/view?usp=sharing'
+MODEL_FILENAME = 'model.joblib' # Define a local filename for the downloaded model
+
 @st.cache_resource # Cache the model loading
-def load_model(model_path='model.joblib'):
-    """Loads the trained machine learning model."""
-    if not os.path.exists(model_path):
-        st.error(f"Error: Model file not found at {model_path}. Please ensure 'model.joblib' is in the same directory.")
-        return None
+def load_model_from_drive(file_id, output_filename):
+    """Downloads the model from Google Drive and loads it."""
+    st.write(f"Attempting to download model file (ID: {file_id}) from Google Drive...")
+    # Create a temporary directory to store the downloaded file
+    temp_dir = tempfile.mkdtemp()
+    local_model_path = os.path.join(temp_dir, output_filename)
+
     try:
-        model = joblib.load(model_path)
+        # Use gdown to download the file
+        # The file ID is enough for gdown if the file is shared correctly
+        gdown.download(id=file_id, output=local_model_path, quiet=False)
+        st.write(f"Model downloaded to {local_model_path}. Loading model...")
+
+        # Load the model from the temporary file
+        model = joblib.load(local_model_path)
+        st.write("Model loaded successfully.")
         return model
     except Exception as e:
-        st.error(f"Error loading model: {e}")
+        st.error(f"Error downloading or loading model from Google Drive: {e}")
+        st.warning("Please ensure the Google Drive file ID is correct and the file is shared with 'Anyone with the link'.")
         return None
+    finally:
+        # Clean up the temporary file and directory after loading
+        if os.path.exists(local_model_path):
+            os.remove(local_model_path)
+        if os.path.exists(temp_dir):
+             os.rmdir(temp_dir)
+
 
 # Load data and model
 merged_df = load_data()
-best_model_pipeline = load_model()
+# Call the new function to load the model from Google Drive
+best_model_pipeline = load_model_from_drive(GOOGLE_DRIVE_FILE_ID, MODEL_FILENAME)
+
 
 # Check if data and model loaded successfully
 if merged_df is None or best_model_pipeline is None:
